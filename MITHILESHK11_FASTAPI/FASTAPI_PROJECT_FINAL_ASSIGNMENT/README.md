@@ -163,6 +163,8 @@ Steps:
 
 ## UI Navigation & Sections
 
+![DASHBOARD](MITHILESHK11_FASTAPI/FASTAPI_PROJECT_FINAL_ASSIGNMENT/Simple_Application/UI.png)
+
 ### 🏠 Dashboard
 - **Overview Stats**: Real-time counters for Doctors, Patients, Appointments, Active Today
 - **Quick Actions**: Fast links to Book Appointment, Add Doctor, Add Patient

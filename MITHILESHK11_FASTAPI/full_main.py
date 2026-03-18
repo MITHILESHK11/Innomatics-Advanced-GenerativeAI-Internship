@@ -4,10 +4,6 @@ from typing import Optional, List
 
 app = FastAPI()
 
-# -----------------------------
-# Product Database
-# -----------------------------
-
 products = [
     {"id": 1, "name": "Wireless Mouse", "price": 499, "category": "Electronics", "in_stock": True},
     {"id": 2, "name": "Notebook", "price": 99, "category": "Stationery", "in_stock": True},
@@ -18,10 +14,6 @@ products = [
 orders = []
 feedback = []
 cart = []
-
-# -----------------------------
-# Basic Store APIs
-# -----------------------------
 
 @app.get("/")
 def home():
@@ -54,10 +46,6 @@ def get_deals():
     expensive = max(products, key=lambda p: p["price"])
     return {"best_deal": cheapest, "premium_pick": expensive}
 
-# -----------------------------
-# Day-2 Filters
-# -----------------------------
-
 @app.get("/products/filter")
 def filter_products(
     min_price: int = Query(None),
@@ -65,16 +53,12 @@ def filter_products(
     category: str = Query(None)
 ):
     result = products
-
     if min_price:
         result = [p for p in result if p["price"] >= min_price]
-
     if max_price:
         result = [p for p in result if p["price"] <= max_price]
-
     if category:
         result = [p for p in result if p["category"].lower() == category.lower()]
-
     return {"filtered_products": result}
 
 @app.get("/products/{product_id}/price")
@@ -83,10 +67,6 @@ def get_product_price(product_id: int):
         if product["id"] == product_id:
             return {"name": product["name"], "price": product["price"]}
     return {"error": "Product not found"}
-
-# -----------------------------
-# Feedback System
-# -----------------------------
 
 class CustomerFeedback(BaseModel):
     customer_name: str = Field(..., min_length=2)
@@ -97,26 +77,15 @@ class CustomerFeedback(BaseModel):
 @app.post("/feedback")
 def submit_feedback(data: CustomerFeedback):
     feedback.append(data.dict())
-    return {
-        "message": "Feedback submitted successfully",
-        "feedback": data.dict(),
-        "total_feedback": len(feedback)
-    }
-
-# -----------------------------
-# Product Summary
-# -----------------------------
+    return {"message": "Feedback submitted successfully", "feedback": data.dict(), "total_feedback": len(feedback)}
 
 @app.get("/products/summary")
 def product_summary():
     in_stock = [p for p in products if p["in_stock"]]
     out_stock = [p for p in products if not p["in_stock"]]
-
     expensive = max(products, key=lambda p: p["price"])
     cheapest = min(products, key=lambda p: p["price"])
-
     categories = list(set(p["category"] for p in products))
-
     return {
         "total_products": len(products),
         "in_stock_count": len(in_stock),
@@ -125,10 +94,6 @@ def product_summary():
         "cheapest": {"name": cheapest["name"], "price": cheapest["price"]},
         "categories": categories
     }
-
-# -----------------------------
-# Bulk Orders
-# -----------------------------
 
 class OrderItem(BaseModel):
     product_id: int
@@ -141,15 +106,11 @@ class BulkOrder(BaseModel):
 
 @app.post("/orders/bulk")
 def place_bulk_order(order: BulkOrder):
-
     confirmed = []
     failed = []
     grand_total = 0
-
     for item in order.items:
-
         product = next((p for p in products if p["id"] == item.product_id), None)
-
         if not product:
             failed.append({"product_id": item.product_id, "reason": "Product not found"})
         elif not product["in_stock"]:
@@ -158,35 +119,24 @@ def place_bulk_order(order: BulkOrder):
             subtotal = product["price"] * item.quantity
             grand_total += subtotal
             confirmed.append({"product": product["name"], "qty": item.quantity, "subtotal": subtotal})
-
     return {"company": order.company_name, "confirmed": confirmed, "failed": failed, "grand_total": grand_total}
-
-# -----------------------------
-# CART SYSTEM (Day-5)
-# -----------------------------
 
 def calculate_total(product, quantity):
     return product["price"] * quantity
 
 @app.post("/cart/add")
 def add_to_cart(product_id: int, quantity: int = 1):
-
     product = next((p for p in products if p["id"] == product_id), None)
-
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-
     if not product["in_stock"]:
         raise HTTPException(status_code=400, detail=f"{product['name']} is out of stock")
-
     for item in cart:
         if item["product_id"] == product_id:
             item["quantity"] += quantity
             item["subtotal"] = calculate_total(product, item["quantity"])
             return {"message": "Cart updated", "cart_item": item}
-
     subtotal = calculate_total(product, quantity)
-
     cart_item = {
         "product_id": product["id"],
         "product_name": product["name"],
@@ -194,33 +144,22 @@ def add_to_cart(product_id: int, quantity: int = 1):
         "unit_price": product["price"],
         "subtotal": subtotal
     }
-
     cart.append(cart_item)
-
     return {"message": "Added to cart", "cart_item": cart_item}
 
 @app.get("/cart")
 def view_cart():
-
     if not cart:
         return {"message": "Cart is empty"}
-
     grand_total = sum(item["subtotal"] for item in cart)
-
-    return {
-        "items": cart,
-        "item_count": len(cart),
-        "grand_total": grand_total
-    }
+    return {"items": cart, "item_count": len(cart), "grand_total": grand_total}
 
 @app.delete("/cart/{product_id}")
 def remove_from_cart(product_id: int):
-
     for item in cart:
         if item["product_id"] == product_id:
             cart.remove(item)
             return {"message": "Item removed from cart"}
-
     raise HTTPException(status_code=404, detail="Item not found in cart")
 
 class CheckoutRequest(BaseModel):
@@ -229,17 +168,12 @@ class CheckoutRequest(BaseModel):
 
 @app.post("/cart/checkout")
 def checkout(data: CheckoutRequest):
-
     if not cart:
         raise HTTPException(status_code=400, detail="Cart is empty — add items first")
-
     grand_total = 0
     created_orders = []
-
     for item in cart:
-
         order_id = len(orders) + 1
-
         order = {
             "order_id": order_id,
             "customer_name": data.customer_name,
@@ -248,15 +182,89 @@ def checkout(data: CheckoutRequest):
             "quantity": item["quantity"],
             "total_price": item["subtotal"]
         }
-
         grand_total += item["subtotal"]
         orders.append(order)
         created_orders.append(order)
-
     cart.clear()
-
     return {"orders_placed": created_orders, "grand_total": grand_total}
 
 @app.get("/orders")
 def view_orders():
     return {"orders": orders, "total_orders": len(orders)}
+
+@app.get("/products/search")
+def search_products_query(keyword: str = Query(...)):
+    result = [p for p in products if keyword.lower() in p["name"].lower()]
+    if not result:
+        return {"message": f"No products found for: {keyword}"}
+    return {"keyword": keyword, "total_found": len(result), "products": result}
+
+@app.get("/products/sort")
+def sort_products(sort_by: str = Query("price"), order: str = Query("asc")):
+    if sort_by not in ["price", "name"]:
+        return {"error": "sort_by must be 'price' or 'name'"}
+    result = sorted(products, key=lambda p: p[sort_by], reverse=(order == "desc"))
+    return {"sort_by": sort_by, "order": order, "products": result}
+
+@app.get("/products/page")
+def paginate_products(page: int = Query(1, ge=1), limit: int = Query(2, ge=1)):
+    start = (page - 1) * limit
+    return {
+        "page": page,
+        "limit": limit,
+        "total": len(products),
+        "total_pages": -(-len(products) // limit),
+        "products": products[start:start + limit]
+    }
+
+@app.get("/orders/search")
+def search_orders(customer_name: str = Query(...)):
+    result = [o for o in orders if customer_name.lower() in o["customer_name"].lower()]
+    if not result:
+        return {"message": f"No orders found for: {customer_name}"}
+    return {"customer_name": customer_name, "total_found": len(result), "orders": result}
+
+@app.get("/products/sort-by-category")
+def sort_by_category():
+    result = sorted(products, key=lambda p: (p["category"], p["price"]))
+    return {"products": result, "total": len(result)}
+
+@app.get("/products/browse")
+def browse_products(
+    keyword: str = Query(None),
+    sort_by: str = Query("price"),
+    order: str = Query("asc"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(4, ge=1, le=20)
+):
+    result = products
+    if keyword:
+        result = [p for p in result if keyword.lower() in p["name"].lower()]
+    if sort_by in ["price", "name"]:
+        result = sorted(result, key=lambda p: p[sort_by], reverse=(order == "desc"))
+    else:
+        return {"error": "sort_by must be 'price' or 'name'"}
+    total = len(result)
+    start = (page - 1) * limit
+    paged = result[start:start + limit]
+    return {
+        "keyword": keyword,
+        "sort_by": sort_by,
+        "order": order,
+        "page": page,
+        "limit": limit,
+        "total_found": total,
+        "total_pages": -(-total // limit),
+        "products": paged
+    }
+
+@app.get("/orders/page")
+def orders_page(page: int = Query(1, ge=1), limit: int = Query(3, ge=1, le=20)):
+    start = (page - 1) * limit
+    return {
+        "page": page,
+        "limit": limit,
+        "total": len(orders),
+        "total_pages": -(-len(orders) // limit),
+        "orders": orders[start:start + limit]
+    }
